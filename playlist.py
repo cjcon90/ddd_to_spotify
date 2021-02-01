@@ -18,34 +18,25 @@ def set_up_spotify():
 
 
 class PlaylistMachine:
-    def __init__(self, scraped_songs):
-        self.scraped_songs = scraped_songs.song_list
-        self.title = scraped_songs.title
+    def __init__(self, scraped_list):
+        self.scraped_list = scraped_list.item_list
+        self.title = scraped_list.title
+        self.list_type = scraped_list.list_type
         self.sp = set_up_spotify()
         self.user_id = self.sp.current_user()['id']
         self.song_uris = self._get_track_uris_()
-        self._create_playlist_()
+        # self._create_playlist_()
 
     def _get_track_uris_(self):
         print("Finding songs in spotify...")
-        arr = []
-        for song in self.scraped_songs:
-            title = song[0]
-            # Remove any (YYYY) from before or after the artist name
-            artist_minus_year = re.sub('([(][0-9]{4}[)])|(- [0-9]{4})', '', song[1])
-            # remove any Â or &nbsp; characters from the artist name
-            artist_minus_whitespace = re.sub('[Â]', '', artist_minus_year)
-            # If there are multiple artists listed for the same song (as in cover performances)...
-            # ...only search for the first artist
-            artist = artist_minus_whitespace.strip().split('/')[0]
-            new_song = self.sp.search(q=f"{title} {artist}", type="track")
-            try:
-                uri = new_song["tracks"]["items"][0]["uri"]
-                arr.append(uri)
-            except IndexError:
-                print(f"Couldn't find '{title}' by {artist} in Spotify. Skipped.")
-        print(f"\n{len(arr)} of {len(self.scraped_songs)} songs found.")
-        return arr
+        if self.list_type == 'song':
+            return self._build_song_list_()
+        elif self.list_type == 'artist':
+            return self._build_artist_list_()
+        elif self.list_type == 'musician':
+            return self._build_musician_list_()
+        elif self.list_type == 'album':
+            return self._build_album_list_()
 
     def _create_playlist_(self):
 
@@ -70,3 +61,57 @@ class PlaylistMachine:
             self.sp.playlist_add_items(playlist_id, track_set)
 
         print(f"Process complete! Listen to your new playlist at: {new_playlist['external_urls']['spotify']}")
+
+    def _build_song_list_(self):
+        arr = []
+        for song in self.scraped_list:
+            title = song[0]
+            # Remove any (YYYY) from before or after the artist name
+            artist_minus_year = re.sub('([(][0-9]{4}[)])|(- [0-9]{4})', '', song[1])
+            # remove any Â or &nbsp; characters from the artist name
+            artist_minus_whitespace = re.sub('[Â]', '', artist_minus_year)
+            # If there are multiple artists listed for the same song (as in cover performances)...
+            # ...only search for the first artist
+            # Unless it is a "best cover song" list - in which case split on | separator and search for both version
+            artist = artist_minus_whitespace.strip().split('/')[0].split('|')
+            for each_artist in artist:
+                new_song = self.sp.search(q=f"{title} {each_artist}", type="track")
+                try:
+                    uri = new_song["tracks"]["items"][0]["uri"]
+                    arr.append(uri)
+                except IndexError:
+                    print(f"Couldn't find '{title}' by {each_artist} in Spotify. Skipped.")
+        # if after splitting the artist / band to separate searches there is more results than the original list:
+        if len(arr) >= len(self.scraped_list):
+            print(f"\n{len(arr)} of {len(arr)} songs found.")
+        else:
+            print(f"\n{len(arr)} of {len(self.scraped_list)} songs found.")
+        return arr
+
+    def _build_artist_list_(self):
+        arr = []
+        for artist in self.scraped_list:
+            # Split for artists that are listed with band/location in parenthases
+            # THen split for artists that are listen multiple times (i.e. Lionel Richie / The Commodores)...
+            # ...and and return a track for each
+            artist = artist[0].split('(')[0].split('/')
+            for each_artist in artist:
+                new_artist = self.sp.search(q=f"artist:{each_artist.strip()}")
+                try:
+                    uri = new_artist['tracks']['items'][0]['uri']
+                    arr.append(uri)
+                except IndexError:
+                    print(f"Couldn't find any songs by {each_artist}. Skipped.")
+        # if after splitting the artist / band to separate searches there is more results than the original list:
+        if len(arr) >= len(self.scraped_list):
+            print(f"\n{len(arr)} of {len(arr)} songs found.")
+        else:
+            print(f"\n{len(arr)} of {len(self.scraped_list)} songs found.")
+        return arr
+
+    def _build_album_list_(self):
+        pass
+
+    def _build_musician_list_(self):
+        pass
+

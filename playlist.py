@@ -5,6 +5,11 @@ import re
 
 
 def set_up_spotify():
+    """
+    Static function to set up Spotify API Auth
+    ClIENT_ID & CLIENT_SECRET have been exported as environmental variables
+    :return:
+    """
     return spotipy.Spotify(
         auth_manager=SpotifyOAuth(
             scope="playlist-modify-public",
@@ -18,16 +23,26 @@ def set_up_spotify():
 
 
 class PlaylistMachine:
+
     def __init__(self, scraped_list):
+        """
+        Non-Public function to initialise the PlaylistMachine
+        :param scraped_list: A scraped list from digitaldreamdoor.com
+        """
         self.scraped_list = scraped_list.item_list
         self.title = scraped_list.title
         self.list_type = scraped_list.list_type
         self.sp = set_up_spotify()
         self.user_id = self.sp.current_user()['id']
         self.song_uris = self._get_track_uris_()
-        # self._create_playlist_()
+        self._create_playlist_()
 
     def _get_track_uris_(self):
+        """
+        A non-public function to determine which method of gathering the track
+        uris should be used (depending on user input)
+        :return:
+        """
         print("Finding songs in spotify...")
         if self.list_type == 'song':
             return self._build_song_list_()
@@ -39,6 +54,11 @@ class PlaylistMachine:
             return self._build_album_list_()
 
     def _create_playlist_(self):
+        """
+        Non public function to receive the created list of track URIs => Create a new playlist
+        in spotify => add all tracks from self.song_uris to the newly created playlist
+        :return:
+        """
 
         # Split the song_uri list into maximum chunks of 100 songs
         # As this is the max amount of songs to add at any one time
@@ -63,6 +83,11 @@ class PlaylistMachine:
         print(f"Process complete! Listen to your new playlist at: {new_playlist['external_urls']['spotify']}")
 
     def _build_song_list_(self):
+        """
+        Non-public function to collect track uris for "best song" lists
+        :return:
+        """
+
         arr = []
         for song in self.scraped_list:
             title = song[0]
@@ -89,10 +114,14 @@ class PlaylistMachine:
         return arr
 
     def _build_artist_list_(self):
+        """
+        Non-public function to collect track uris for "best artist" lists
+        :return:
+        """
         arr = []
         for artist in self.scraped_list:
-            # Split for artists that are listed with band/location in parenthases
-            # THen split for artists that are listen multiple times (i.e. Lionel Richie / The Commodores)...
+            # Split for artists that are listed with band/location in parentheses
+            # Then split for artists that are listen multiple times (i.e. Lionel Richie / The Commodores)...
             # ...and and return a track for each
             artist = artist[0].split('(')[0].split('/')
             for each_artist in artist:
@@ -110,8 +139,34 @@ class PlaylistMachine:
         return arr
 
     def _build_album_list_(self):
-        pass
+        """
+        Non-public function to collect track uris for "best album" lists
+        :return:
+        """
+        arr = []
+        for album in self.scraped_list:
+            # Replace (YYYY) - whether it originally appears to the left or right of '-'
+            new_album = re.sub('([(][0-9]{4}[)])|(- [0-9]{4})', '', album[0]).strip()
+            new_artist = re.sub('([(][0-9]{4}[)])|(- [0-9]{4})', '', album[1]).strip()
+            album_search = self.sp.search(q=f"{new_album} {new_artist}", type='album')
+            try:
+                album_id = album_search['albums']['items'][0]['id']
+            except IndexError:
+                print(f"Couldn't find the album '{new_album}' by {new_artist}. Skipped.")
+            else:
+                album_tracks = self.sp.album_tracks(album_id)
+                for item in album_tracks['items']:
+                    try:
+                        arr.append(item['uri'])
+                    except IndexError:
+                        print(f"Couldn't find the album '{new_album}' by {new_artist}. Skipped.")
+        print(f"\n{len(arr)} songs found.")
+        return arr
 
     def _build_musician_list_(self):
+        """
+        Non-public function to collect track uris for "best drummer/bassist/guitarist/etc." lists
+        :return:
+        """
         pass
 

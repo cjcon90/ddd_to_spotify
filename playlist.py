@@ -32,7 +32,7 @@ class PlaylistMachine:
         for song in self.scraped_songs:
             title = song[0]
             # Remove any (YYYY) from before or after the artist name
-            artist_minus_year = re.sub('[(][0-9]{2,4}[)]', '', song[1])
+            artist_minus_year = re.sub('([(][0-9]{4}[)])|(- [0-9]{4})', '', song[1])
             # remove any Â or &nbsp; characters from the artist name
             artist_minus_whitespace = re.sub('[Â]', '', artist_minus_year)
             # If there are multiple artists listed for the same song (as in cover performances)...

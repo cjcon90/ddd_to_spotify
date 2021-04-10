@@ -1,8 +1,10 @@
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 import os
+from dotenv import load_dotenv
 import re
 
+load_dotenv()
 
 def set_up_spotify():
     """
@@ -14,8 +16,8 @@ def set_up_spotify():
         auth_manager=SpotifyOAuth(
             scope="playlist-modify-public",
             redirect_uri="http://example.com/",
-            client_id=os.environ['CLIENT_ID'],
-            client_secret=os.environ['CLIENT_SECRET'],
+            client_id=os.environ.get('CLIENT_ID'),
+            client_secret=os.environ.get('CLIENT_SECRET'),
             show_dialog=True,
             cache_path="token.txt"
         )
@@ -59,7 +61,7 @@ class PlaylistMachine:
         in spotify => add all tracks from self.song_uris to the newly created playlist
         :return:
         """
-
+        print(f"\n{len(self.song_uris)} songs found.")
         # Split the song_uri list into maximum chunks of 100 songs
         # As this is the max amount of songs to add at any one time
         track_list = [self.song_uris[i * 100:(i + 1) * 100] for i in range((len(self.song_uris) + 100 - 1) // 100)]
@@ -106,11 +108,6 @@ class PlaylistMachine:
                     arr.append(uri)
                 except IndexError:
                     print(f"Couldn't find '{title}' by {each_artist} in Spotify. Skipped.")
-        # if after splitting the artist / band to separate searches there is more results than the original list:
-        if len(arr) >= len(self.scraped_list):
-            print(f"\n{len(arr)} of {len(arr)} songs found.")
-        else:
-            print(f"\n{len(arr)} of {len(self.scraped_list)} songs found.")
         return arr
 
     def _build_artist_list_(self):
@@ -131,11 +128,6 @@ class PlaylistMachine:
                     arr.append(uri)
                 except IndexError:
                     print(f"Couldn't find any songs by {each_artist}. Skipped.")
-        # if after splitting the artist / band to separate searches there is more results than the original list:
-        if len(arr) >= len(self.scraped_list):
-            print(f"\n{len(arr)} of {len(arr)} songs found.")
-        else:
-            print(f"\n{len(arr)} of {len(self.scraped_list)} songs found.")
         return arr
 
     def _build_album_list_(self):
@@ -160,7 +152,6 @@ class PlaylistMachine:
                         arr.append(item['uri'])
                     except IndexError:
                         print(f"Couldn't find the album '{new_album}' by {new_artist}. Skipped.")
-        print(f"\n{len(arr)} songs found.")
         return arr
 
     def _build_musician_list_(self):
